@@ -9,6 +9,19 @@ export class Graph {
     }
     
     addVertex(x, y) {
+        // Validar coordenadas
+        if (typeof x !== 'number' || typeof y !== 'number' || 
+            isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+            console.error('Coordenadas inválidas para el vértice');
+            return null;
+        }
+        
+        // Validar que las coordenadas estén dentro del canvas
+        if (x < 0 || y < 0 || x > 1000 || y > 600) {
+            console.error('Las coordenadas del vértice están fuera del rango permitido');
+            return null;
+        }
+        
         const id = `v${this.nextVertexId++}`;
         const vertex = {
             id,
@@ -22,13 +35,34 @@ export class Graph {
     }
     
     addEdge(sourceId, targetId, weight = 1) {
-        // Validar que la arista no exista
-        const edgeExists = this.edges.some(edge => 
-            (edge.source === sourceId && edge.target === targetId) ||
-            (!this.directed && edge.source === targetId && edge.target === sourceId)
-        );
+        // Validar IDs de vértices
+        if (!this.getVertex(sourceId) || !this.getVertex(targetId)) {
+            console.error('Vértices inválidos para la arista');
+            return null;
+        }
         
-        if (edgeExists) return null;
+        // Validar peso
+        if (this.weighted && (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0)) {
+            console.error('Peso inválido para la arista');
+            return null;
+        }
+        
+        // Validar que la arista no exista (solo para grafos no dirigidos)
+        const edgeExists = this.edges.some(edge => {
+            if (this.directed) {
+                // Para grafos dirigidos: misma dirección = mismo source y target
+                return edge.source === sourceId && edge.target === targetId;
+            } else {
+                // Para grafos no dirigidos: cualquier dirección entre los mismos nodos
+                return (edge.source === sourceId && edge.target === targetId) ||
+                       (edge.source === targetId && edge.target === sourceId);
+            }
+        });
+        
+        if (edgeExists && sourceId !== targetId) {
+            console.error('La arista ya existe');
+            return null;
+        }
         
         const id = `e${this.nextEdgeId++}`;
         const edge = {
@@ -36,8 +70,8 @@ export class Graph {
             source: sourceId,
             target: targetId,
             directed: this.directed,
-            weight: this.weighted ? weight : 1,
-            label: this.weighted ? weight.toString() : ''
+            weight: this.weighted ? Math.max(1, Math.floor(weight)) : 1,
+            label: this.weighted ? Math.max(1, Math.floor(weight)).toString() : ''
         };
         
         this.edges.push(edge);
@@ -45,12 +79,26 @@ export class Graph {
     }
     
     removeVertex(vertexId) {
+        // Validar ID del vértice
+        if (!this.getVertex(vertexId)) {
+            console.error('Vértice no encontrado');
+            return false;
+        }
+        
         this.vertices = this.vertices.filter(v => v.id !== vertexId);
         this.edges = this.edges.filter(e => e.source !== vertexId && e.target !== vertexId);
+        return true;
     }
     
     removeEdge(edgeId) {
+        // Validar ID de la arista
+        if (!this.getEdge(edgeId)) {
+            console.error('Arista no encontrada');
+            return false;
+        }
+        
         this.edges = this.edges.filter(e => e.id !== edgeId);
+        return true;
     }
     
     getVertex(vertexId) {
@@ -62,11 +110,39 @@ export class Graph {
     }
     
     updateEdgeWeight(edgeId, weight) {
+        // Validar peso
+        if (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0) {
+            console.error('Peso inválido');
+            return false;
+        }
+        
         const edge = this.getEdge(edgeId);
         if (edge) {
-            edge.weight = weight;
-            edge.label = this.weighted ? weight.toString() : '';
+            edge.weight = Math.max(1, Math.floor(weight));
+            edge.label = this.weighted ? edge.weight.toString() : '';
             return true;
+        }
+        return false;
+    }
+    
+    updateEdgeDirection(edgeId, directed) {
+        const edge = this.getEdge(edgeId);
+        if (edge) {
+            // Solo permitir cambiar dirección si es consistente con la configuración del grafo
+            if (edge.directed !== directed) {
+                // Verificar si ya existe una arista en la dirección opuesta
+                const oppositeEdgeExists = this.edges.some(e => 
+                    e.source === edge.target && e.target === edge.source && e.id !== edgeId
+                );
+                
+                if (oppositeEdgeExists && !this.directed) {
+                    console.error('Ya existe una arista en la dirección opuesta');
+                    return false;
+                }
+                
+                edge.directed = directed;
+                return true;
+            }
         }
         return false;
     }
@@ -76,6 +152,7 @@ export class Graph {
         this.edges = [];
         this.nextVertexId = 1;
         this.nextEdgeId = 1;
+        return true;
     }
     
     getMetrics() {
@@ -103,14 +180,27 @@ export class Graph {
             const j = vertexIndexMap[edge.target];
             
             if (i !== undefined && j !== undefined) {
-                matrix[i][j] = this.weighted ? edge.weight : 1;
-                
-                if (!edge.directed) {
+                if (this.directed) {
+                    // Grafo dirigido: solo llenar la posición i,j
+                    matrix[i][j] = this.weighted ? edge.weight : 1;
+                } else {
+                    // Grafo no dirigido: llenar ambas posiciones (matriz simétrica)
+                    matrix[i][j] = this.weighted ? edge.weight : 1;
                     matrix[j][i] = this.weighted ? edge.weight : 1;
                 }
             }
         });
         
         return matrix;
+    }
+    
+    // Cambiar el tipo de dirección de todas las aristas
+    setGraphDirection(directed) {
+        this.directed = directed;
+        // Actualizar la dirección de todas las aristas existentes
+        this.edges.forEach(edge => {
+            edge.directed = directed;
+        });
+        return true;
     }
 }

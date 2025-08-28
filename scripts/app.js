@@ -36,19 +36,27 @@ class GraphEditor {
         });
         
         document.getElementById('clearBtn').addEventListener('click', () => {
-            if (confirm('¿Estás seguro de que quieres limpiar todo el grafo?')) {
-                this.graph.clear();
-                this.renderer.render();
-                this.uiController.updateMetrics();
-                this.uiController.updateAdjacencyMatrix();
+            if (confirm('¿Estás seguro de que quieres limpiar todo el grafo? Se perderán todos los datos.')) {
+                if (this.graph.clear()) {
+                    this.renderer.render();
+                    this.uiController.updateMetrics();
+                    this.uiController.updateAdjacencyMatrix();
+                } else {
+                    alert('No se pudo limpiar el grafo.');
+                }
             }
         });
         
         document.getElementById('directedToggle').addEventListener('click', () => {
-            this.graph.directed = !this.graph.directed;
-            this.uiController.updateDirectedToggle();
-            this.uiController.updateMetrics();
-            this.uiController.updateAdjacencyMatrix();
+            const newDirected = !this.graph.directed;
+            if (this.graph.setGraphDirection(newDirected)) {
+                this.uiController.updateDirectedToggle();
+                this.uiController.updateMetrics();
+                this.uiController.updateAdjacencyMatrix();
+                this.renderer.render(); // Re-renderizar para mostrar flechas
+            } else {
+                alert('No se pudo cambiar la dirección del grafo. Verifique que no haya conflictos con las aristas existentes.');
+            }
         });
         
         document.getElementById('weightedToggle').addEventListener('click', () => {
@@ -66,6 +74,16 @@ class GraphEditor {
         // Event listener para el modal de peso
         document.getElementById('saveWeightBtn').addEventListener('click', () => {
             this.uiController.saveEdgeWeight();
+        });
+        
+        // Event listener para cerrar el modal con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const weightModal = bootstrap.Modal.getInstance(document.getElementById('weightModal'));
+                if (weightModal) {
+                    weightModal.hide();
+                }
+            }
         });
     }
 }

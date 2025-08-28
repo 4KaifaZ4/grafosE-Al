@@ -77,37 +77,81 @@ export class GraphRenderer {
             
             if (!sourceVertex || !targetVertex) return;
             
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', sourceVertex.x);
-            line.setAttribute('y1', sourceVertex.y);
-            line.setAttribute('x2', targetVertex.x);
-            line.setAttribute('y2', targetVertex.y);
-            line.setAttribute('class', 'edge');
-            line.setAttribute('data-id', edge.id);
-            
-            if (edge.directed) {
-                line.classList.add('directed');
-            }
-            
-            if (this.selectedElement?.type === 'edge' && this.selectedElement.id === edge.id) {
-                line.classList.add('selected');
-            }
-            
-            this.canvas.appendChild(line);
-            
-            // Renderizar peso si es ponderado
-            if (this.graph.weighted) {
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                const midX = (sourceVertex.x + targetVertex.x) / 2;
-                const midY = (sourceVertex.y + targetVertex.y) / 2;
-                text.setAttribute('x', midX);
-                text.setAttribute('y', midY - 10);
-                text.setAttribute('class', 'edge-text');
-                text.setAttribute('text-anchor', 'middle');
-                text.textContent = edge.weight.toString();
-                this.canvas.appendChild(text);
+            if (sourceVertex.id === targetVertex.id) {
+                // Auto-conexión (arista al mismo nodo)
+                this.renderSelfLoop(sourceVertex, edge);
+            } else {
+                // Arista normal entre nodos diferentes
+                this.renderNormalEdge(sourceVertex, targetVertex, edge);
             }
         });
+    }
+    
+    renderNormalEdge(sourceVertex, targetVertex, edge) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', sourceVertex.x);
+        line.setAttribute('y1', sourceVertex.y);
+        line.setAttribute('x2', targetVertex.x);
+        line.setAttribute('y2', targetVertex.y);
+        line.setAttribute('class', 'edge');
+        line.setAttribute('data-id', edge.id);
+        
+        if (edge.directed) {
+            line.classList.add('directed');
+        }
+        
+        if (this.selectedElement?.type === 'edge' && this.selectedElement.id === edge.id) {
+            line.classList.add('selected');
+        }
+        
+        this.canvas.appendChild(line);
+        
+        // Renderizar peso si es ponderado
+        if (this.graph.weighted) {
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            const midX = (sourceVertex.x + targetVertex.x) / 2;
+            const midY = (sourceVertex.y + targetVertex.y) / 2;
+            text.setAttribute('x', midX);
+            text.setAttribute('y', midY - 10);
+            text.setAttribute('class', 'edge-text');
+            text.setAttribute('text-anchor', 'middle');
+            text.textContent = edge.weight.toString();
+            this.canvas.appendChild(text);
+        }
+    }
+    
+    renderSelfLoop(vertex, edge) {
+        // Dibujar un bucle (círculo) para auto-conexiones
+        const loop = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        loop.setAttribute('cx', vertex.x);
+        loop.setAttribute('cy', vertex.y - 25);
+        loop.setAttribute('r', '15');
+        loop.setAttribute('class', 'edge-loop');
+        loop.setAttribute('data-id', edge.id);
+        
+        if (edge.directed) {
+            loop.classList.add('directed');
+            
+            // Agregar marcador de flecha para auto-conexiones dirigidas
+            loop.setAttribute('marker-end', 'url(#arrowhead)');
+        }
+        
+        if (this.selectedElement?.type === 'edge' && this.selectedElement.id === edge.id) {
+            loop.classList.add('selected');
+        }
+        
+        this.canvas.appendChild(loop);
+        
+        // Renderizar peso si es ponderado
+        if (this.graph.weighted) {
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', vertex.x);
+            text.setAttribute('y', vertex.y - 45);
+            text.setAttribute('class', 'edge-text');
+            text.setAttribute('text-anchor', 'middle');
+            text.textContent = edge.weight.toString();
+            this.canvas.appendChild(text);
+        }
     }
     
     getElementAtPosition(x, y) {
@@ -128,11 +172,22 @@ export class GraphRenderer {
             
             if (!sourceVertex || !targetVertex) continue;
             
-            // Calcular distancia desde el punto a la línea
-            const distance = this.pointToLineDistance(x, y, sourceVertex.x, sourceVertex.y, targetVertex.x, targetVertex.y);
-            
-            if (distance <= 5) {
-                return { type: 'edge', id: edge.id };
+            if (sourceVertex.id === targetVertex.id) {
+                // Auto-conexión: verificar si el clic está cerca del bucle
+                const loopX = sourceVertex.x;
+                const loopY = sourceVertex.y - 25;
+                const distance = Math.sqrt(Math.pow(loopX - x, 2) + Math.pow(loopY - y, 2));
+                
+                if (distance <= 20) {
+                    return { type: 'edge', id: edge.id };
+                }
+            } else {
+                // Arista normal: calcular distancia desde el punto a la línea
+                const distance = this.pointToLineDistance(x, y, sourceVertex.x, sourceVertex.y, targetVertex.x, targetVertex.y);
+                
+                if (distance <= 5) {
+                    return { type: 'edge', id: edge.id };
+                }
             }
         }
         

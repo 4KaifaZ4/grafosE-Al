@@ -83,6 +83,22 @@
         .btn-group .btn {
             font-size: 0.8rem;
         }
+        
+        /* Estilo para auto-conexiones */
+        .edge-loop {
+            fill: none;
+            stroke: #6c757d;
+            stroke-width: 2px;
+        }
+        
+        .edge-loop.directed {
+            marker-end: url(#arrowhead);
+        }
+        
+        .edge-loop.selected {
+            stroke: #ffc107;
+            stroke-width: 3px;
+        }
     </style>
 </head>
 <body>
@@ -169,7 +185,10 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="weightInput" class="form-label">Peso de la arista:</label>
-                        <input type="number" class="form-control" id="weightInput" value="1" min="1">
+                        <input type="number" class="form-control" id="weightInput" value="1" min="1" required>
+                        <div class="invalid-feedback" id="weightError">
+                            Por favor ingrese un número válido mayor a 0.
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

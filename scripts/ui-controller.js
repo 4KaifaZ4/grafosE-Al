@@ -20,6 +20,7 @@ export class UIController {
     setMode(mode) {
         this.currentMode = mode;
         this.edgeStartVertex = null;
+        this.restoreVertexColor();
         
         // Actualizar estado visual de los botones
         document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -40,6 +41,11 @@ export class UIController {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         
+        // Validar que el clic esté dentro del canvas
+        if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+            return;
+        }
+        
         switch(this.currentMode) {
             case 'addVertex':
                 this.addVertex(x, y);
@@ -57,10 +63,14 @@ export class UIController {
     }
     
     addVertex(x, y) {
-        this.graph.addVertex(x, y);
-        this.renderer.render();
-        this.updateMetrics();
-        this.updateAdjacencyMatrix();
+        const vertex = this.graph.addVertex(x, y);
+        if (vertex) {
+            this.renderer.render();
+            this.updateMetrics();
+            this.updateAdjacencyMatrix();
+        } else {
+            alert('No se pudo crear el vértice. Verifique las coordenadas.');
+        }
     }
     
     handleEdgeCreation(x, y) {
@@ -71,45 +81,68 @@ export class UIController {
                 // Primer vértice seleccionado
                 this.edgeStartVertex = element.id;
                 // Resaltar visualmente el vértice seleccionado
-                const vertexElement = this.renderer.canvas.querySelector(`[data-id="${element.id}"]`);
-                if (vertexElement) {
-                    vertexElement.style.fill = '#28a745';
-                }
+                this.highlightVertex(element.id, '#28a745');
             } else {
                 // Segundo vértice seleccionado, crear arista
-                if (this.edgeStartVertex !== element.id) {
-                    let weight = 1;
-                    
-                    // Si el grafo es ponderado, pedir el peso
-                    if (this.graph.weighted) {
-                        const weightInput = prompt('Ingrese el peso de la arista:', '1');
-                        if (weightInput === null) return; // Usuario canceló
-                        weight = parseInt(weightInput) || 1;
-                    }
-                    
-                    this.graph.addEdge(this.edgeStartVertex, element.id, weight);
+                let weight = 1;
+                
+                // Si el grafo es ponderado, pedir el peso
+                if (this.graph.weighted) {
+                    let weightInput;
+                    do {
+                        weightInput = prompt('Ingrese el peso de la arista (número mayor a 0):', '1');
+                        if (weightInput === null) {
+                            // Usuario canceló
+                            this.restoreVertexColor();
+                            this.edgeStartVertex = null;
+                            return;
+                        }
+                        
+                        weight = parseInt(weightInput);
+                        if (isNaN(weight) || weight <= 0) {
+                            alert('Por favor ingrese un número válido mayor a 0.');
+                        }
+                    } while (isNaN(weight) || weight <= 0);
+                }
+                
+                // Intentar crear la arista
+                const edge = this.graph.addEdge(this.edgeStartVertex, element.id, weight);
+                
+                if (!edge && this.edgeStartVertex !== element.id) {
+                    alert('Esta arista ya existe. No se pueden crear aristas duplicadas en grafos no dirigidos.');
+                } else if (edge) {
                     this.renderer.render();
                     this.updateMetrics();
                     this.updateAdjacencyMatrix();
                 }
                 
                 // Restaurar color original del vértice
-                const vertexElement = this.renderer.canvas.querySelector(`[data-id="${this.edgeStartVertex}"]`);
-                if (vertexElement) {
-                    vertexElement.style.fill = '#6f42c1';
-                }
-                
+                this.restoreVertexColor();
                 this.edgeStartVertex = null;
             }
         } else if (!element && this.edgeStartVertex) {
             // Clic en espacio vacío, cancelar creación de arista
-            // Restaurar color original del vértice
-            const vertexElement = this.renderer.canvas.querySelector(`[data-id="${this.edgeStartVertex}"]`);
-            if (vertexElement) {
-                vertexElement.style.fill = '#6f42c1';
-            }
-            
+            this.restoreVertexColor();
             this.edgeStartVertex = null;
+        }
+    }
+    
+    highlightVertex(vertexId, color) {
+        const vertexElement = this.renderer.canvas.querySelector(`[data-id="${vertexId}"]`);
+        if (vertexElement) {
+            vertexElement.style.fill = color;
+        }
+    }
+    
+    restoreVertexColor() {
+        if (this.edgeStartVertex) {
+            const vertex = this.graph.getVertex(this.edgeStartVertex);
+            if (vertex) {
+                const vertexElement = this.renderer.canvas.querySelector(`[data-id="${this.edgeStartVertex}"]`);
+                if (vertexElement) {
+                    vertexElement.style.fill = vertex.color;
+                }
+            }
         }
     }
     
@@ -131,16 +164,21 @@ export class UIController {
         const element = this.renderer.getElementAtPosition(x, y);
         
         if (element) {
+            let success = false;
             if (element.type === 'vertex') {
-                this.graph.removeVertex(element.id);
+                success = this.graph.removeVertex(element.id);
             } else if (element.type === 'edge') {
-                this.graph.removeEdge(element.id);
+                success = this.graph.removeEdge(element.id);
             }
             
-            this.renderer.render();
-            this.updateMetrics();
-            this.updateAdjacencyMatrix();
-            this.updatePropertiesPanel();
+            if (success) {
+                this.renderer.render();
+                this.updateMetrics();
+                this.updateAdjacencyMatrix();
+                this.updatePropertiesPanel();
+            } else {
+                alert('No se pudo eliminar el elemento.');
+            }
         }
     }
     
@@ -162,7 +200,7 @@ export class UIController {
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Etiqueta:</label>
-                    <input type="text" class="form-control form-control-sm" value="${vertex.label}" id="vertexLabelInput">
+                    <input type="text" class="form-control form-control-sm" value="${vertex.label}" id="vertexLabelInput" maxlength="10">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Color:</label>
@@ -176,7 +214,13 @@ export class UIController {
                 const labelInput = document.getElementById('vertexLabelInput');
                 const colorInput = document.getElementById('vertexColorInput');
                 
-                vertex.label = labelInput.value;
+                // Validar etiqueta
+                if (labelInput.value.trim() === '') {
+                    alert('La etiqueta no puede estar vacía');
+                    return;
+                }
+                
+                vertex.label = labelInput.value.trim();
                 vertex.color = colorInput.value;
                 
                 this.renderer.render();
@@ -201,6 +245,10 @@ export class UIController {
                     <label class="form-label small">Hacia:</label>
                     <input type="text" class="form-control form-control-sm" value="${targetVertex.label}" disabled>
                 </div>
+                <div class="mb-2">
+                    <label class="form-label small">Dirección:</label>
+                    <input type="text" class="form-control form-control-sm" value="${edge.directed ? 'Dirigida' : 'No Dirigida'}" disabled>
+                </div>
             `;
             
             if (this.graph.weighted) {
@@ -208,7 +256,7 @@ export class UIController {
                     <div class="mb-2">
                         <label class="form-label small">Peso:</label>
                         <div class="d-flex">
-                            <input type="number" class="form-control form-control-sm" value="${edge.weight}" id="edgeWeightInput">
+                            <input type="number" class="form-control form-control-sm" value="${edge.weight}" id="edgeWeightInput" min="1" disabled>
                             <button class="btn btn-primary btn-sm ms-2" id="editWeightBtn">Editar</button>
                         </div>
                     </div>
@@ -217,6 +265,34 @@ export class UIController {
                 // Agregar event listener al botón de editar peso
                 document.getElementById('editWeightBtn').addEventListener('click', () => {
                     this.showWeightModal(edge);
+                });
+            }
+            
+            // Solo mostrar opción de cambiar dirección si el grafo es dirigido
+            if (this.graph.directed) {
+                panel.innerHTML += `
+                    <div class="mb-2">
+                        <label class="form-label small">Cambiar Dirección:</label>
+                        <select class="form-select form-select-sm" id="edgeDirectionSelect">
+                            <option value="true" ${edge.directed ? 'selected' : ''}>De ${sourceVertex.label} a ${targetVertex.label}</option>
+                            <option value="false" ${!edge.directed ? 'selected' : ''}>De ${targetVertex.label} a ${sourceVertex.label}</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-2" id="saveDirectionBtn">Cambiar Dirección</button>
+                `;
+                
+                // Agregar event listener al botón de cambiar dirección
+                document.getElementById('saveDirectionBtn').addEventListener('click', () => {
+                    const directionSelect = document.getElementById('edgeDirectionSelect');
+                    const newDirection = directionSelect.value === 'true';
+                    
+                    if (this.graph.updateEdgeDirection(edge.id, newDirection)) {
+                        this.renderer.render();
+                        this.updateAdjacencyMatrix();
+                        this.updatePropertiesPanel(); // Actualizar panel para mostrar cambios
+                    } else {
+                        alert('No se pudo cambiar la dirección. Verifique que no exista una arista en la dirección opuesta.');
+                    }
                 });
             }
         }
@@ -229,21 +305,43 @@ export class UIController {
         
         const weightModal = new bootstrap.Modal(document.getElementById('weightModal'));
         weightModal.show();
+        
+        // Enfocar el input y seleccionar su contenido
+        setTimeout(() => {
+            weightInput.focus();
+            weightInput.select();
+        }, 100);
     }
     
     saveEdgeWeight() {
         if (this.currentEdgeForWeight) {
             const weightInput = document.getElementById('weightInput');
-            const weight = parseInt(weightInput.value) || 1;
+            let weight = parseInt(weightInput.value);
             
-            this.graph.updateEdgeWeight(this.currentEdgeForWeight.id, weight);
-            this.renderer.render();
-            this.updateAdjacencyMatrix();
-            this.updatePropertiesPanel();
+            // Validar el peso
+            if (isNaN(weight) || weight <= 0) {
+                alert('Por favor ingrese un número válido mayor a 0.');
+                weightInput.focus();
+                weightInput.select();
+                return;
+            }
             
-            // Cerrar el modal
-            const weightModal = bootstrap.Modal.getInstance(document.getElementById('weightModal'));
-            weightModal.hide();
+            // Asegurarse de que el peso sea un entero
+            weight = Math.max(1, Math.floor(weight));
+            
+            if (this.graph.updateEdgeWeight(this.currentEdgeForWeight.id, weight)) {
+                this.renderer.render();
+                this.updateAdjacencyMatrix();
+                this.updatePropertiesPanel();
+                
+                // Cerrar el modal
+                const weightModal = bootstrap.Modal.getInstance(document.getElementById('weightModal'));
+                if (weightModal) {
+                    weightModal.hide();
+                }
+            } else {
+                alert('No se pudo actualizar el peso. La arista puede haber sido eliminada.');
+            }
         }
     }
     
