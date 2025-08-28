@@ -1,0 +1,97 @@
+/* Estilos principales para el Editor de Grafos */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+#graphCanvas {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+}
+
+.vertex {
+    stroke: #fff;
+    stroke-width: 2px;
+    cursor: pointer;
+    transition: fill 0.2s ease;
+}
+
+.vertex:hover {
+    fill: #5a32a8;
+}
+
+.vertex.selected {
+    stroke: #ffc107;
+    stroke-width: 3px;
+}
+
+.vertex-text {
+    font-size: 12px;
+    font-weight: bold;
+    pointer-events: none;
+}
+
+.edge {
+    stroke: #6c757d;
+    stroke-width: 2px;
+    cursor: pointer;
+}
+
+.edge:hover {
+    stroke: #495057;
+}
+
+.edge.selected {
+    stroke: #ffc107;
+    stroke-width: 3px;
+}
+
+.edge.directed {
+    marker-end: url(#arrowhead);
+}
+
+.edge-text {
+    font-size: 11px;
+    font-weight: bold;
+    pointer-events: none;
+    fill: #495057;
+}
+
+.tool-btn.active {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.matrix-table {
+    font-size: 0.85rem;
+}
+
+.matrix-table th, .matrix-table td {
+    padding: 0.3rem;
+    text-align: center;
+}
+
+.algorithm-info {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    display: none;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+.dropdown-menu {
+    font-size: 0.9rem;
+}

@@ -1,0 +1,45 @@
+/* Estilos para el tema oscuro */
+body.dark-theme {
+    background-color: #212529;
+    color: #f8f9fa;
+}
+
+body.dark-theme .card {
+    background-color: #343a40;
+    border-color: #495057;
+}
+
+body.dark-theme .card-header {
+    background-color: #2d3238;
+    border-bottom: 1px solid #495057;
+}
+
+body.dark-theme #graphCanvas {
+    background-color: #2b3035;
+    border-color: #495057;
+}
+
+body.dark-theme .matrix-table {
+    background-color: #343a40;
+    color: #f8f9fa;
+}
+
+body.dark-theme .matrix-table th,
+body.dark-theme .matrix-table td {
+    border-color: #495057;
+}
+
+body.dark-theme .nav-tabs .nav-link {
+    color: #adb5bd;
+}
+
+body.dark-theme .nav-tabs .nav-link.active {
+    background-color: #343a40;
+    border-color: #495057 #495057 #343a40;
+    color: #f8f9fa;
+}
+
+body.dark-theme .algorithm-info {
+    background-color: rgba(52, 58, 64, 0.9);
+    color: #f8f9fa;
+}

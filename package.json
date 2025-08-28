@@ -1,0 +1,22 @@
+{
+  "name": "editor-grafos",
+  "version": "1.0.0",
+  "description": "Editor interactivo de grafos para visualización y análisis de estructuras de datos",
+  "main": "scripts/app.js",
+  "scripts": {
+    "start": "live-server --open=editor-grafos",
+    "build": "echo 'No build process needed for this project'"
+  },
+  "keywords": [
+    "graph",
+    "editor",
+    "visualization",
+    "algorithm",
+    "javascript"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
