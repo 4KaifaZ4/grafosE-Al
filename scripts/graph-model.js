@@ -28,13 +28,14 @@ export class Graph {
             x,
             y,
             label: id,
-            color: '#6f42c1'
+            color: '#6f42c1',
+            radius: 20 // Radio inicial, se ajustará según el texto
         };
         this.vertices.push(vertex);
         return vertex;
     }
     
-    addEdge(sourceId, targetId, weight = 1) {
+    addEdge(sourceId, targetId, weight = 0, directed = null) {
         // Validar IDs de vértices
         if (!this.getVertex(sourceId) || !this.getVertex(targetId)) {
             console.error('Vértices inválidos para la arista');
@@ -42,24 +43,27 @@ export class Graph {
         }
         
         // Validar peso
-        if (this.weighted && (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0)) {
+        if (this.weighted && (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight < 0)) {
             console.error('Peso inválido para la arista');
             return null;
         }
         
-        // Validar que la arista no exista (solo para grafos no dirigidos)
+        // Usar la dirección del grafo por defecto si no se especifica
+        const edgeDirected = directed !== null ? directed : this.directed;
+        
+        // Validar que la arista no exista
         const edgeExists = this.edges.some(edge => {
-            if (this.directed) {
-                // Para grafos dirigidos: misma dirección = mismo source y target
+            if (edgeDirected || this.directed) {
+                // Para aristas dirigidas: verificar misma dirección
                 return edge.source === sourceId && edge.target === targetId;
             } else {
-                // Para grafos no dirigidos: cualquier dirección entre los mismos nodos
+                // Para aristas no dirigidas: verificar cualquier dirección
                 return (edge.source === sourceId && edge.target === targetId) ||
                        (edge.source === targetId && edge.target === sourceId);
             }
         });
         
-        if (edgeExists && sourceId !== targetId) {
+        if (edgeExists) {
             console.error('La arista ya existe');
             return null;
         }
@@ -69,9 +73,9 @@ export class Graph {
             id,
             source: sourceId,
             target: targetId,
-            directed: this.directed,
-            weight: this.weighted ? Math.max(1, Math.floor(weight)) : 1,
-            label: this.weighted ? Math.max(1, Math.floor(weight)).toString() : ''
+            directed: edgeDirected,
+            weight: this.weighted ? Math.max(0, weight) : 0,
+            label: this.weighted ? Math.max(0, weight).toString() : ''
         };
         
         this.edges.push(edge);
@@ -111,14 +115,14 @@ export class Graph {
     
     updateEdgeWeight(edgeId, weight) {
         // Validar peso
-        if (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0) {
+        if (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight < 0) {
             console.error('Peso inválido');
             return false;
         }
         
         const edge = this.getEdge(edgeId);
         if (edge) {
-            edge.weight = Math.max(1, Math.floor(weight));
+            edge.weight = Math.max(0, weight);
             edge.label = this.weighted ? edge.weight.toString() : '';
             return true;
         }
@@ -128,16 +132,18 @@ export class Graph {
     updateEdgeDirection(edgeId, directed) {
         const edge = this.getEdge(edgeId);
         if (edge) {
-            // Solo permitir cambiar dirección si es consistente con la configuración del grafo
+            // Verificar si el cambio de dirección crearía un conflicto
             if (edge.directed !== directed) {
-                // Verificar si ya existe una arista en la dirección opuesta
-                const oppositeEdgeExists = this.edges.some(e => 
-                    e.source === edge.target && e.target === edge.source && e.id !== edgeId
-                );
-                
-                if (oppositeEdgeExists && !this.directed) {
-                    console.error('Ya existe una arista en la dirección opuesta');
-                    return false;
+                // Para aristas no dirigidas, verificar si ya existe una arista en la dirección opuesta
+                if (!directed) {
+                    const oppositeEdgeExists = this.edges.some(e => 
+                        e.source === edge.target && e.target === edge.source && e.id !== edgeId
+                    );
+                    
+                    if (oppositeEdgeExists) {
+                        console.error('Ya existe una arista en la dirección opuesta');
+                        return false;
+                    }
                 }
                 
                 edge.directed = directed;
@@ -145,6 +151,14 @@ export class Graph {
             }
         }
         return false;
+    }
+    
+    addBidirectionalEdge(sourceId, targetId, weight = 0) {
+        // Crear dos aristas dirigidas en ambas direcciones
+        const edge1 = this.addEdge(sourceId, targetId, weight, true);
+        const edge2 = this.addEdge(targetId, sourceId, weight, true);
+        
+        return edge1 && edge2 ? [edge1, edge2] : null;
     }
     
     clear() {
@@ -180,11 +194,11 @@ export class Graph {
             const j = vertexIndexMap[edge.target];
             
             if (i !== undefined && j !== undefined) {
-                if (this.directed) {
-                    // Grafo dirigido: solo llenar la posición i,j
+                if (edge.directed) {
+                    // Arista dirigida: solo llenar la posición i,j
                     matrix[i][j] = this.weighted ? edge.weight : 1;
                 } else {
-                    // Grafo no dirigido: llenar ambas posiciones (matriz simétrica)
+                    // Arista no dirigida: llenar ambas posiciones (matriz simétrica)
                     matrix[i][j] = this.weighted ? edge.weight : 1;
                     matrix[j][i] = this.weighted ? edge.weight : 1;
                 }
@@ -194,13 +208,75 @@ export class Graph {
         return matrix;
     }
     
-    // Cambiar el tipo de dirección de todas las aristas
+    // Cambiar el tipo de dirección del grafo
     setGraphDirection(directed) {
+        // Primero verificar si el cambio es posible
+        if (directed === this.directed) return true;
+        
+        if (!directed) {
+            // Cambiando de dirigido a no dirigido: verificar que no haya aristas conflictivas
+            for (let i = 0; i < this.edges.length; i++) {
+                for (let j = i + 1; j < this.edges.length; j++) {
+                    const edge1 = this.edges[i];
+                    const edge2 = this.edges[j];
+                    
+                    if (edge1.source === edge2.target && edge1.target === edge2.source) {
+                        console.error('No se puede cambiar a no dirigido: existen aristas bidireccionales');
+                        return false;
+                    }
+                }
+            }
+        }
+        
         this.directed = directed;
+        
         // Actualizar la dirección de todas las aristas existentes
         this.edges.forEach(edge => {
             edge.directed = directed;
         });
+        
         return true;
+    }
+    
+    // Exportar el grafo como objeto JSON
+    exportToJSON() {
+        return {
+            vertices: this.vertices,
+            edges: this.edges,
+            directed: this.directed,
+            weighted: this.weighted,
+            nextVertexId: this.nextVertexId,
+            nextEdgeId: this.nextEdgeId
+        };
+    }
+    
+    // Importar grafo desde objeto JSON
+    importFromJSON(data) {
+        if (!data.vertices || !data.edges) {
+            console.error('Datos de importación inválidos');
+            return false;
+        }
+        
+        this.vertices = data.vertices;
+        this.edges = data.edges;
+        this.directed = data.directed || false;
+        this.weighted = data.weighted || false;
+        this.nextVertexId = data.nextVertexId || this.vertices.length + 1;
+        this.nextEdgeId = data.nextEdgeId || this.edges.length + 1;
+        
+        return true;
+    }
+    
+    // Ajustar el tamaño de los vértices según el texto
+    adjustVertexSize(vertexId) {
+        const vertex = this.getVertex(vertexId);
+        if (vertex) {
+            // Calcular el ancho aproximado del texto
+            const textWidth = vertex.label.length * 8;
+            // El radio será la mitad del ancho del texto + un margen
+            vertex.radius = Math.max(20, textWidth / 2 + 10);
+            return vertex.radius;
+        }
+        return null;
     }
 }

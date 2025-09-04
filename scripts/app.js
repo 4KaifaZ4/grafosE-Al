@@ -19,6 +19,7 @@ class GraphEditor {
     }
     
     setupEventListeners() {
+        // Botones de herramientas
         document.getElementById('addVertexBtn').addEventListener('click', () => {
             this.uiController.setMode('addVertex');
         });
@@ -47,6 +48,7 @@ class GraphEditor {
             }
         });
         
+        // Toggles de tipo de grafo
         document.getElementById('directedToggle').addEventListener('click', () => {
             const newDirected = !this.graph.directed;
             if (this.graph.setGraphDirection(newDirected)) {
@@ -55,7 +57,7 @@ class GraphEditor {
                 this.uiController.updateAdjacencyMatrix();
                 this.renderer.render(); // Re-renderizar para mostrar flechas
             } else {
-                alert('No se pudo cambiar la dirección del grafo. Verifique que no haya conflictos con las aristas existentes.');
+                alert('No se pudo cambiar la dirección del grafo. Verifique que no haya aristas bidireccionales que causen conflicto.');
             }
         });
         
@@ -67,6 +69,7 @@ class GraphEditor {
             this.uiController.updateAdjacencyMatrix();
         });
         
+        // Evento para el canvas
         document.getElementById('graphCanvas').addEventListener('click', (e) => {
             this.uiController.handleCanvasClick(e);
         });
@@ -85,9 +88,98 @@ class GraphEditor {
                 }
             }
         });
+        
+        // Agregar botones de exportación/importación si no existen
+        this.addExportImportButtons();
+    }
+    
+    addExportImportButtons() {
+        const buttonGroup = document.querySelector('.btn-group.ms-2');
+        
+        // Botón de exportar
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'btn btn-secondary btn-sm tool-btn';
+        exportBtn.id = 'exportBtn';
+        exportBtn.textContent = 'Exportar';
+        exportBtn.addEventListener('click', () => {
+            this.showExportMenu();
+        });
+        
+        // Botón de importar
+        const importBtn = document.createElement('button');
+        importBtn.className = 'btn btn-secondary btn-sm tool-btn';
+        importBtn.id = 'importBtn';
+        importBtn.textContent = 'Importar';
+        importBtn.addEventListener('click', () => {
+            this.uiController.importGraph();
+        });
+        
+        buttonGroup.appendChild(exportBtn);
+        buttonGroup.appendChild(importBtn);
+    }
+    
+    showExportMenu() {
+        // Crear menú desplegable para exportar
+        const menu = document.createElement('div');
+        menu.className = 'dropdown-menu show p-2';
+        menu.style.position = 'absolute';
+        menu.style.zIndex = '1000';
+        menu.style.minWidth = '200px';
+        
+        // Opción para exportar como JSON
+        const jsonOption = document.createElement('button');
+        jsonOption.className = 'dropdown-item btn btn-sm';
+        jsonOption.textContent = 'Exportar como JSON';
+        jsonOption.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.uiController.exportGraph();
+            menu.remove();
+        });
+        
+        // Opción para exportar como imagen
+        const imageOption = document.createElement('button');
+        imageOption.className = 'dropdown-item btn btn-sm';
+        imageOption.textContent = 'Exportar como Imagen PNG';
+        imageOption.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.uiController.exportAsImage();
+            menu.remove();
+        });
+        
+        menu.appendChild(jsonOption);
+        menu.appendChild(document.createElement('hr'));
+        menu.appendChild(imageOption);
+        
+        // Posicionar el menú debajo del botón de exportar
+        const exportBtn = document.getElementById('exportBtn');
+        const rect = exportBtn.getBoundingClientRect();
+        menu.style.left = rect.left + 'px';
+        menu.style.top = rect.bottom + 'px';
+        
+        document.body.appendChild(menu);
+        
+        // Cerrar el menú al hacer clic fuera de él
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && e.target !== exportBtn) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 0);
     }
 }
 
+// Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     new GraphEditor();
+});
+
+// Manejar la tecla Enter en el modal de peso
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.getElementById('weightModal').classList.contains('show')) {
+        document.getElementById('saveWeightBtn').click();
+    }
 });

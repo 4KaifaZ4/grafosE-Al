@@ -10,8 +10,9 @@ export class GraphRenderer {
     
     createArrowMarker() {
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
         
+        // Marcador para flechas normales
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
         marker.setAttribute('id', 'arrowhead');
         marker.setAttribute('markerWidth', '10');
         marker.setAttribute('markerHeight', '7');
@@ -25,6 +26,23 @@ export class GraphRenderer {
         
         marker.appendChild(polygon);
         defs.appendChild(marker);
+        
+        // Marcador para flechas de auto-conexiones
+        const loopMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        loopMarker.setAttribute('id', 'arrowhead-loop');
+        loopMarker.setAttribute('markerWidth', '10');
+        loopMarker.setAttribute('markerHeight', '7');
+        loopMarker.setAttribute('refX', '9');
+        loopMarker.setAttribute('refY', '3.5');
+        loopMarker.setAttribute('orient', 'auto');
+        
+        const loopPolygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        loopPolygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+        loopPolygon.setAttribute('fill', '#6c757d');
+        
+        loopMarker.appendChild(loopPolygon);
+        defs.appendChild(loopMarker);
+        
         this.canvas.appendChild(defs);
     }
     
@@ -45,10 +63,13 @@ export class GraphRenderer {
     
     renderVertices() {
         this.graph.vertices.forEach(vertex => {
+            // Usar el radio calculado según el tamaño del texto
+            const radius = vertex.radius || 20;
+            
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', vertex.x);
             circle.setAttribute('cy', vertex.y);
-            circle.setAttribute('r', '15');
+            circle.setAttribute('r', radius);
             circle.setAttribute('class', 'vertex');
             circle.setAttribute('fill', vertex.color);
             circle.setAttribute('data-id', vertex.id);
@@ -62,9 +83,10 @@ export class GraphRenderer {
             // Renderizar etiqueta
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             text.setAttribute('x', vertex.x);
-            text.setAttribute('y', vertex.y + 5);
+            text.setAttribute('y', vertex.y);
             text.setAttribute('class', 'vertex-text');
             text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dominant-baseline', 'middle');
             text.textContent = vertex.label;
             this.canvas.appendChild(text);
         });
@@ -89,15 +111,30 @@ export class GraphRenderer {
     
     renderNormalEdge(sourceVertex, targetVertex, edge) {
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', sourceVertex.x);
-        line.setAttribute('y1', sourceVertex.y);
-        line.setAttribute('x2', targetVertex.x);
-        line.setAttribute('y2', targetVertex.y);
+        
+        // Calcular desplazamiento para que la línea no se superponga con los vértices
+        const sourceRadius = sourceVertex.radius || 20;
+        const targetRadius = targetVertex.radius || 20;
+        
+        // Calcular ángulo y puntos de inicio/fin
+        const dx = targetVertex.x - sourceVertex.x;
+        const dy = targetVertex.y - sourceVertex.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance === 0) return; // Evitar división por cero
+        
+        const offsetX = (dx / distance) * sourceRadius;
+        const offsetY = (dy / distance) * sourceRadius;
+        
+        line.setAttribute('x1', sourceVertex.x + offsetX);
+        line.setAttribute('y1', sourceVertex.y + offsetY);
+        line.setAttribute('x2', targetVertex.x - offsetX);
+        line.setAttribute('y2', targetVertex.y - offsetY);
         line.setAttribute('class', 'edge');
         line.setAttribute('data-id', edge.id);
         
         if (edge.directed) {
-            line.classList.add('directed');
+            line.setAttribute('marker-end', 'url(#arrowhead)');
         }
         
         if (this.selectedElement?.type === 'edge' && this.selectedElement.id === edge.id) {
@@ -107,14 +144,20 @@ export class GraphRenderer {
         this.canvas.appendChild(line);
         
         // Renderizar peso si es ponderado
-        if (this.graph.weighted) {
+        if (this.graph.weighted && edge.weight !== undefined) {
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             const midX = (sourceVertex.x + targetVertex.x) / 2;
             const midY = (sourceVertex.y + targetVertex.y) / 2;
-            text.setAttribute('x', midX);
-            text.setAttribute('y', midY - 10);
+            
+            // Desplazar ligeramente el texto para mejor legibilidad
+            const textOffsetX = -dy / distance * 15;
+            const textOffsetY = dx / distance * 15;
+            
+            text.setAttribute('x', midX + textOffsetX);
+            text.setAttribute('y', midY + textOffsetY);
             text.setAttribute('class', 'edge-text');
             text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dominant-baseline', 'middle');
             text.textContent = edge.weight.toString();
             this.canvas.appendChild(text);
         }
@@ -123,17 +166,16 @@ export class GraphRenderer {
     renderSelfLoop(vertex, edge) {
         // Dibujar un bucle (círculo) para auto-conexiones
         const loop = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        const radius = vertex.radius || 20;
+        
         loop.setAttribute('cx', vertex.x);
-        loop.setAttribute('cy', vertex.y - 25);
+        loop.setAttribute('cy', vertex.y - radius - 15);
         loop.setAttribute('r', '15');
         loop.setAttribute('class', 'edge-loop');
         loop.setAttribute('data-id', edge.id);
         
         if (edge.directed) {
-            loop.classList.add('directed');
-            
-            // Agregar marcador de flecha para auto-conexiones dirigidas
-            loop.setAttribute('marker-end', 'url(#arrowhead)');
+            loop.setAttribute('marker-end', 'url(#arrowhead-loop)');
         }
         
         if (this.selectedElement?.type === 'edge' && this.selectedElement.id === edge.id) {
@@ -143,12 +185,13 @@ export class GraphRenderer {
         this.canvas.appendChild(loop);
         
         // Renderizar peso si es ponderado
-        if (this.graph.weighted) {
+        if (this.graph.weighted && edge.weight !== undefined) {
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             text.setAttribute('x', vertex.x);
-            text.setAttribute('y', vertex.y - 45);
+            text.setAttribute('y', vertex.y - radius - 35);
             text.setAttribute('class', 'edge-text');
             text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dominant-baseline', 'middle');
             text.textContent = edge.weight.toString();
             this.canvas.appendChild(text);
         }
@@ -158,8 +201,9 @@ export class GraphRenderer {
         // Buscar vértices primero (están encima de las aristas)
         for (let i = this.graph.vertices.length - 1; i >= 0; i--) {
             const vertex = this.graph.vertices[i];
+            const radius = vertex.radius || 20;
             const distance = Math.sqrt(Math.pow(vertex.x - x, 2) + Math.pow(vertex.y - y, 2));
-            if (distance <= 15) {
+            if (distance <= radius) {
                 return { type: 'vertex', id: vertex.id };
             }
         }
@@ -174,8 +218,9 @@ export class GraphRenderer {
             
             if (sourceVertex.id === targetVertex.id) {
                 // Auto-conexión: verificar si el clic está cerca del bucle
+                const radius = sourceVertex.radius || 20;
                 const loopX = sourceVertex.x;
-                const loopY = sourceVertex.y - 25;
+                const loopY = sourceVertex.y - radius - 15;
                 const distance = Math.sqrt(Math.pow(loopX - x, 2) + Math.pow(loopY - y, 2));
                 
                 if (distance <= 20) {
@@ -235,5 +280,51 @@ export class GraphRenderer {
     clearSelection() {
         this.selectedElement = null;
         this.render();
+    }
+    
+    // Método para exportar como imagen (corregido)
+    exportAsImage() {
+        // Crear un canvas para convertir SVG a PNG
+        const canvas = document.createElement('canvas');
+        canvas.width = this.canvas.width.baseVal.value;
+        canvas.height = this.canvas.height.baseVal.value;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Fondo blanco
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Obtener el SVG como cadena de texto
+        const svgData = new XMLSerializer().serializeToString(this.canvas);
+        const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+        const svgUrl = URL.createObjectURL(svgBlob);
+        
+        // Crear una imagen a partir del SVG
+        const img = new Image();
+        img.onload = () => {
+            // Dibujar la imagen SVG en el canvas
+            ctx.drawImage(img, 0, 0);
+            
+            // Obtener la imagen como PNG
+            const imgData = canvas.toDataURL('image/png');
+            
+            // Crear un enlace de descarga
+            const link = document.createElement('a');
+            link.download = 'grafo.png';
+            link.href = imgData;
+            link.click();
+            
+            // Liberar recursos
+            URL.revokeObjectURL(svgUrl);
+        };
+        
+        img.onerror = (error) => {
+            console.error('Error al cargar la imagen SVG:', error);
+            alert('Error al exportar la imagen. Intente nuevamente.');
+            URL.revokeObjectURL(svgUrl);
+        };
+        
+        img.src = svgUrl;
     }
 }
