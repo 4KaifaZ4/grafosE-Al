@@ -1,4 +1,4 @@
-/* Estilos para el tema oscuro */
+
 body.dark-theme {
     background-color: #212529;
     color: #f8f9fa;
@@ -39,7 +39,18 @@ body.dark-theme .nav-tabs .nav-link.active {
     color: #f8f9fa;
 }
 
-body.dark-theme .algorithm-info {
-    background-color: rgba(52, 58, 64, 0.9);
+body.dark-theme .help-modal-content {
+    background-color: #343a40;
+    color: #f8f9fa;
+}
+
+body.dark-theme .help-step {
+    background-color: #2d3238;
+    color: #f8f9fa;
+}
+
+body.dark-theme .help-key {
+    background-color: #495057;
+    border-color: #6c757d;
     color: #f8f9fa;
 }

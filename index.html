@@ -81,7 +81,7 @@
         }
         
         .edge-loop.directed {
-            marker-end: url(#arrowhead);
+            marker-end: url(#arrowhead-loop);
         }
         
         .edge-loop.selected {
@@ -109,12 +109,121 @@
         .dropdown-menu {
             z-index: 1000;
         }
+        
+        /* Estilos para el sistema de ayuda */
+        .help-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #6f42c1;
+            color: white;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .help-tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            max-width: 300px;
+            z-index: 1001;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .help-tooltip::after {
+            content: '';
+            position: absolute;
+            border-width: 8px;
+            border-style: solid;
+        }
+        
+        .help-tooltip.top::after {
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
+        }
+        
+        .help-tooltip.bottom::after {
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
+        }
+        
+        .help-tooltip.left::after {
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border-color: transparent transparent transparent rgba(0, 0, 0, 0.85);
+        }
+        
+        .help-tooltip.right::after {
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border-color: transparent rgba(0, 0, 0, 0.85) transparent transparent;
+        }
+        
+        .help-modal-content {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .help-step {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #6f42c1;
+        }
+        
+        .help-step-number {
+            background-color: #6f42c1;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .help-key {
+            display: inline-block;
+            padding: 2px 6px;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <span class="navbar-brand">Editor de Grafos Completo - MVP</span>
+            <div class="d-flex">
+                <button id="helpBtn" class="btn btn-sm btn-outline-light me-2">
+                    <i class="bi bi-question-circle"></i> Ayuda
+                </button>
+                <button id="themeToggle" class="btn btn-sm btn-outline-light">Tema Oscuro</button>
+            </div>
         </div>
     </nav>
 
@@ -124,27 +233,29 @@
                 <div class="card">
                     <div class="card-header py-2">
                         <div class="btn-group" role="group">
-                            <button id="addVertexBtn" class="btn btn-primary btn-sm tool-btn">Añadir Vértice</button>
-                            <button id="addEdgeBtn" class="btn btn-success btn-sm tool-btn">Añadir Arista</button>
-                            <button id="selectBtn" class="btn btn-info btn-sm tool-btn">Seleccionar</button>
-                            <button id="deleteBtn" class="btn btn-danger btn-sm tool-btn">Eliminar</button>
-                            <button id="clearBtn" class="btn btn-warning btn-sm tool-btn">Limpiar Todo</button>
+                            <button id="addVertexBtn" class="btn btn-primary btn-sm tool-btn" data-help="Haz clic en esta herramienta y luego en el lienzo para añadir un nuevo vértice">Añadir Vértice</button>
+                            <button id="addEdgeBtn" class="btn btn-success btn-sm tool-btn" data-help="Selecciona esta herramienta, luego haz clic en un vértice y después en otro para crear una conexión">Añadir Arista</button>
+                            <button id="selectBtn" class="btn btn-info btn-sm tool-btn" data-help="Selecciona esta herramienta para hacer clic en vértices o aristas y ver sus propiedades">Seleccionar</button>
+                            <button id="deleteBtn" class="btn btn-danger btn-sm tool-btn" data-help="Activa esta herramienta y haz clic en cualquier elemento para eliminarlo">Eliminar</button>
+                            <button id="clearBtn" class="btn btn-warning btn-sm tool-btn" data-help="Borra todo el grafo y comienza desde cero">Limpiar Todo</button>
                         </div>
                         <div class="btn-group ms-2" role="group">
-                            <button id="directedToggle" class="btn btn-secondary btn-sm tool-btn">No Dirigido</button>
-                            <button id="weightedToggle" class="btn btn-secondary btn-sm tool-btn">No Ponderado</button>
+                            <button id="directedToggle" class="btn btn-secondary btn-sm tool-btn" data-help="Cambia entre grafo dirigido (con flechas) y no dirigido">No Dirigido</button>
+                            <button id="weightedToggle" class="btn btn-secondary btn-sm tool-btn" data-help="Activa/desactiva los pesos en las aristas">No Ponderado</button>
                         </div>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="card-body p-0 position-relative">
                         <svg id="graphCanvas" width="100%" height="600"></svg>
+                        <div id="currentHelp" class="help-tooltip" style="display: none;"></div>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-3">
                 <div class="card mb-3">
-                    <div class="card-header py-2">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Propiedades</h6>
+                        <span class="badge bg-info" data-help="Aquí puedes editar las propiedades del elemento seleccionado">ℹ️</span>
                     </div>
                     <div class="card-body" id="propertiesPanel">
                         <p class="text-muted">Selecciona un elemento para editar sus propiedades</p>
@@ -152,8 +263,9 @@
                 </div>
 
                 <div class="card mb-3">
-                    <div class="card-header py-2">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Matriz de Adyacencia</h6>
+                        <span class="badge bg-info" data-help="Esta tabla muestra las conexiones entre los vértices de tu grafo">ℹ️</span>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -169,8 +281,9 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header py-2">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">Métricas del Grafo</h6>
+                        <span class="badge bg-info" data-help="Información general sobre tu grafo">ℹ️</span>
                     </div>
                     <div class="card-body">
                         <div id="graphMetrics">
@@ -196,6 +309,7 @@
                     <div class="mb-3">
                         <label for="weightInput" class="form-label">Peso de la arista:</label>
                         <input type="number" class="form-control" id="weightInput" value="0" min="0" step="0.1" required>
+                        <div class="form-text">Ingresa un número mayor o igual a 0</div>
                         <div class="invalid-feedback" id="weightError">
                             Por favor ingrese un número válido mayor o igual a 0.
                         </div>
@@ -208,6 +322,90 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal de ayuda -->
+    <div class="modal fade" id="helpModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content help-modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📚 Guía de uso del Editor de Grafos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">1</div>
+                        <div>
+                            <h6>Añadir Vértices (Nodos)</h6>
+                            <p>Selecciona <span class="help-key">Añadir Vértice</span> y haz clic en cualquier lugar del lienzo blanco para crear un nuevo nodo.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">2</div>
+                        <div>
+                            <h6>Crear Conexiones (Aristas)</h6>
+                            <p>Selecciona <span class="help-key">Añadir Arista</span>, haz clic en un vértice (se pondrá verde) y luego en otro vértice para conectarlos.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">3</div>
+                        <div>
+                            <h6>Seleccionar Elementos</h6>
+                            <p>Usa <span class="help-key">Seleccionar</span> para hacer clic en vértices o aristas. Sus propiedades aparecerán en el panel lateral.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">4</div>
+                        <div>
+                            <h6>Eliminar Elementos</h6>
+                            <p>Selecciona <span class="help-key">Eliminar</span> y haz clic en cualquier elemento para borrarlo.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">5</div>
+                        <div>
+                            <h6>Tipos de Grafos</h6>
+                            <p>Usa <span class="help-key">Dirigido/No Dirigido</span> para cambiar entre grafos con flechas (dirigidos) y sin flechas (no dirigidos).</p>
+                            <p>Usa <span class="help-key">Ponderado/No Ponderado</span> para añadir o quitar pesos (números) a las conexiones.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">6</div>
+                        <div>
+                            <h6>Auto-conexiones</h6>
+                            <p>Puedes crear conexiones de un vértice a sí mismo haciendo clic en el mismo vértice dos veces al añadir aristas.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">7</div>
+                        <div>
+                            <h6>Editar Propiedades</h6>
+                            <p>Selecciona cualquier elemento y usa el panel de propiedades para cambiar su nombre, color o peso.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="help-step d-flex align-items-start">
+                        <div class="help-step-number">8</div>
+                        <div>
+                            <h6>Exportar tu Trabajo</h6>
+                            <p>Usa el botón <span class="help-key">Exportar</span> para guardar tu grafo como archivo JSON o como imagen PNG.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón flotante de ayuda -->
+    <button class="help-btn" id="floatingHelpBtn" title="¿Necesitas ayuda?">?</button>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="scripts/app.js"></script>
